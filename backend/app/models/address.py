@@ -16,10 +16,11 @@ class Address(Base):
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
-    city: Mapped[str] = mapped_column(String(100))
-    street: Mapped[str] = mapped_column(String(150))
-    building: Mapped[str] = mapped_column(String(20))
-    apartment: Mapped[str | None] = mapped_column(String(20))
+    city: Mapped[str] = mapped_column(String(50))
+    street: Mapped[str] = mapped_column(String(50))
+    corpus: Mapped[str | None] = mapped_column(String(10))
+    building: Mapped[str] = mapped_column(String(10))
+    apartment: Mapped[str | None] = mapped_column(String(10))
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

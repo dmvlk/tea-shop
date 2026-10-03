@@ -10,3 +10,4 @@ passlib[bcrypt]>=1.7
 python-dotenv>=1.0
 pydantic[email]>=2.8
 bcrypt>=5.0
+python-multipart>=0.0.9
