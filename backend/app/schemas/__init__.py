@@ -17,6 +17,7 @@ from app.schemas.product import (
     ProductCreate,
     ProductRead,
     ProductUpdate,
+    PaginatedProducts,
 )
 from app.schemas.address import (
     AddressCreate,
@@ -46,6 +47,7 @@ __all__ = [
     "ProductCreate",
     "ProductRead",
     "ProductUpdate",
+    "PaginatedProducts",
     "CategoryCreate",
     "CategoryRead",
     "CategoryUpdate",

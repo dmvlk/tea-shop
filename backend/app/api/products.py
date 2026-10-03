@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import select, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.deps import get_current_admin
 from app.db.session import get_db
@@ -9,26 +9,53 @@ from app.models.user import User
 from app.schemas.product import (
     ProductCreate,
     ProductRead,
-    ProductUpdate
+    ProductUpdate,
+    PaginatedProducts,
 )
 
 router = APIRouter(prefix="/api/products", tags=["products"])
 
-@router.get("", response_model=list[ProductRead])
+@router.get("", response_model=PaginatedProducts)
 async def list_products(
     category_id: int | None = Query(default=None),
     search: str | None = Query(default=None, max_length=255),
+    min_price: float | None = Query(default=None, ge=0),
+    max_price: float | None = Query(default=None, ge=0),
+    in_stock: bool | None = Query(default=None),
     ordering: str = Query(default="name"),
-    skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=20, ge=1, le=100),
+    page: int = Query(default=1, ge=1),
+    size: int = Query(default=20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
 ):
     stmt = select(Product)
+    count_stmt = select(func.count()).select_from(Product)
+
+    filters = []
 
     if category_id is not None:
-        stmt = stmt.where(Product.category_id == category_id)
+        filters.append(Product.category_id == category_id)
+
     if search:
-        stmt = stmt.where(Product.name.ilike(f"%{search}%"))
+        pattern = f"%{search}%"
+        filters.append(
+            or_(
+                Product.name.ilike(pattern),
+                Product.description.ilike(pattern),
+            )
+        )
+
+    if min_price is not None:
+        filters.append(Product.price >= min_price)
+
+    if max_price is not None:
+        filters.append(Product.price <= max_price)
+
+    if in_stock is True:
+        filters.append(Product.stock_quantity > 0)
+
+    if filters:
+        stmt = stmt.where(*filters)
+        count_stmt = count_stmt.where(*filters)
 
     allowed_ordering = {
         "name": Product.name,
@@ -37,13 +64,25 @@ async def list_products(
         "-price": Product.price.desc(),
         "created_at": Product.created_at,
         "-created_at": Product.created_at.desc(),
+        "weight": Product.weight_grams,
+        "-weight": Product.weight_grams.desc(),
     }
 
     order_by = allowed_ordering.get(ordering, Product.name)
-    stmt = stmt.order_by(order_by).offset(skip).limit(limit)
+    stmt = stmt.order_by(order_by)
 
-    result = await db.execute(stmt)
-    return result.scalars().all()
+    offset = (page - 1) * size
+    stmt = stmt.offset(offset).limit(size)
+
+    total = (await db.execute(count_stmt)).scalar_one()
+    items = (await db.execute(stmt)).scalars().all()
+    
+    return PaginatedProducts(
+        items=list(items),
+        total=total,
+        page=page,
+        size=size,
+    )
 
 @router.get("/{product_id}", response_model=ProductRead)
 async def get_product(product_id: int, db: AsyncSession = Depends(get_db)):

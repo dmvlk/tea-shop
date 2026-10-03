@@ -30,3 +30,9 @@ class ProductRead(ProductBase):
 
     id: int
     created_at: datetime
+
+class PaginatedProducts(BaseModel):
+    items: list[ProductRead]
+    total: int
+    page: int
+    size: int
